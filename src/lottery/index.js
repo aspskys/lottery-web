@@ -60,7 +60,9 @@ let selectedCardIndex = [],
   currentPrize,
   // 正在抽奖
   isLotting = false,
-  currentLuckys = [];
+  currentLuckys = [],
+  // 当前轮次抽中的奖品
+  currentWonPrizes = [];
 
 initAll();
 
@@ -144,20 +146,26 @@ function startMock() {
   basicData.leftUsers = mockData.leftUsers;//左边用户
   basicData.luckyUsers = mockData.luckyData;//已抽奖用户
 
-  let prizeIndex = basicData.prizes.length - 1
-  for (; prizeIndex > -1; prizeIndex--) {
-    if (
-      mockData.luckyData[prizeIndex] &&
-      mockData.luckyData[prizeIndex].length >=
-      basicData.prizes[prizeIndex].count
-    ) {
-      continue;
+  // 从第1轮开始，找到当前应该抽奖的轮次
+  let prizeIndex = 1; // 从1开始，0是"抽奖结束"占位符
+  for (; prizeIndex < basicData.prizes.length; prizeIndex++) {
+    let prizeType = basicData.prizes[prizeIndex].type;
+    let luckyCount = mockData.luckyData[prizeType] ? mockData.luckyData[prizeType].length : 0;
+    if (luckyCount < basicData.prizes[prizeIndex].count) {
+      // 这一轮还没抽完
+      currentPrizeIndex = prizeIndex;
+      currentPrize = basicData.prizes[currentPrizeIndex];
+      break;
     }
-    currentPrizeIndex = prizeIndex;
-    currentPrize = basicData.prizes[currentPrizeIndex];
-    break;
   }
-  console.error(currentPrizeIndex, currentPrize);
+
+  // 如果所有轮次都抽完了
+  if (prizeIndex >= basicData.prizes.length) {
+    currentPrizeIndex = 0; // 显示"抽奖结束"
+    currentPrize = basicData.prizes[0];
+  }
+
+  console.log("当前轮次索引:", currentPrizeIndex, "当前奖项:", currentPrize);
   showPrizeList(currentPrizeIndex);
   let curLucks = basicData.luckyUsers[currentPrize.type];
   setPrizeData(currentPrizeIndex, curLucks ? curLucks.length : 0, true);
@@ -720,13 +728,18 @@ function selectCard(duration = 600) {
     }
   }
 
-  let text = currentLuckys.map(item => item[1]);
+  // 显示每个人获得的具体奖品
+  let prizeMessages = currentLuckys.map((item, index) => {
+    let prizeName = currentWonPrizes[index] || "神秘礼品";
+    return `${item[1]}获得【${prizeName}】`;
+  });
   addQipao(
-    `恭喜${text.join("、")}获得${currentPrize.title}, 新的一年必定旺旺旺。`
+    `🎉恭喜！${prizeMessages.join("，")}，新的一年必定旺旺旺！`
   );
 
   selectedCardIndex.forEach((cardIndex, index) => {
-    changeCard(cardIndex, currentLuckys[index]);
+    let prizeName = currentWonPrizes[index] || "神秘礼品";
+    changeCard(cardIndex, currentLuckys[index], prizeName);
     var object = threeDCards[cardIndex];
     new TWEEN.Tween(object.position)
       .to(
@@ -826,6 +839,7 @@ function lottery() {
   rotateBall().then(() => {
     // 将之前的记录置空
     currentLuckys = [];
+    currentWonPrizes = [];
     selectedCardIndex = [];
     // 当前同时抽取的数目,当前奖品抽完还可以继续抽，但是不记录数据
     let perCount = EACH_COUNT[currentPrizeIndex],
@@ -833,15 +847,33 @@ function lottery() {
       leftCount = basicData.leftUsers.length,
       leftPrizeCount = currentPrize.count - (luckyData ? luckyData.length : 0);
     const cloneLeftUsers = JSON.parse(JSON.stringify(basicData.leftUsers))
+
+    // 获取当前轮次的剩余奖品
+    let roundType = currentPrize.type;
+    let leftPrizes = mockData.getLeftPrizesForRound(roundType);
+
     if (leftCount === 0) {
       addQipao("人员已抽完，现在重新设置所有人员可以进行二次抽奖！");
       basicData.leftUsers = basicData.users;
       leftCount = basicData.leftUsers.length;
     }
+
     currentLuckys = lotteryRan(leftCount, perCount).map(index => {
       return cloneLeftUsers[index]
     })
-    console.log(currentLuckys);
+
+    // 从当前轮次的奖品池中随机抽取奖品
+    for (let i = 0; i < perCount && leftPrizes.length > 0; i++) {
+      let prizeIndex = random(leftPrizes.length);
+      let wonPrize = leftPrizes.splice(prizeIndex, 1)[0];
+      currentWonPrizes.push(wonPrize);
+    }
+
+    // 保存当前轮次剩余奖品
+    mockData.saveLeftPrizesForRound(roundType, leftPrizes);
+
+    console.log("中奖人员:", currentLuckys);
+    console.log("中奖奖品:", currentWonPrizes);
 
     for (let i = 0; i < perCount; i++) {
 
@@ -921,15 +953,15 @@ function saveMock() {
   console.log(curLucky.map(item => item[0]), "幸运用户");
   basicData.leftUsers = basicData.leftUsers.filter(human => !curLucky.map(item => item[0]).includes(human[0]))
 
-  //奖品树小于等于幸运用户数,商品抽满了
+  //奖品数小于等于幸运用户数,这一轮抽满了
   if (currentPrize.count <= curLucky.length) {
-    //下一个奖品
-    currentPrizeIndex--;
-    //到0为止
-    if (currentPrizeIndex <= -1) {
+    //进入下一轮
+    currentPrizeIndex++;
+    //超过最后一轮则回到0（抽奖结束）
+    if (currentPrizeIndex >= basicData.prizes.length) {
       currentPrizeIndex = 0;
     }
-    //选择奖品更新为下一个
+    //选择奖品更新为下一轮
     currentPrize = basicData.prizes[currentPrizeIndex];
 
 
@@ -1002,6 +1034,19 @@ function setLuckyStore(type, currentLuckys, PrizeIndex) {
   const leftUsers = JSON.stringify(basicData.leftUsers)
   localStorage.setItem("leftUsers", leftUsers)
 
+  // 保存中奖人员和对应奖品的映射
+  let wonPrizes = JSON.parse(localStorage.getItem("wonPrizes")) || {};
+  if (!wonPrizes[type]) {
+    wonPrizes[type] = [];
+  }
+  currentLuckys.forEach((user, index) => {
+    wonPrizes[type].push({
+      user: user,
+      prize: currentWonPrizes[index] || "神秘礼品"
+    });
+  });
+  localStorage.setItem("wonPrizes", JSON.stringify(wonPrizes));
+
 }
 
 function changePrize() {
@@ -1029,12 +1074,12 @@ function random(num) {
 //     user[1]
 //   }</div><div class="details">${user[0]}<br/>${user[2] || "PSST"}</div>`;
 // }
-function changeCard(cardIndex, user) {
+function changeCard(cardIndex, user, prize) {
   let card = threeDCards[cardIndex].element;
-  const nameDom = `<div class="name">${user[1]
-    }</div>`
-  const companyDom = `<div class="company">${COMPANY}</div>`
-  card.innerHTML = nameDom + (COMPANY ? companyDom : '');
+  const nameDom = `<div class="name">${user[1]}</div>`;
+  const companyDom = `<div class="company">${COMPANY}</div>`;
+  const prizeDom = prize ? `<div class="prize-name">${prize}</div>` : '';
+  card.innerHTML = nameDom + (COMPANY ? companyDom : '') + prizeDom;
 }
 
 /**

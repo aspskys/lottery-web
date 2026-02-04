@@ -6,25 +6,26 @@
  * @LastEditors: Gavin
  */
 const test = [
-  ["000016", "佐助", "技术部"]
-  , ["000022", "赵云", "技术部"]
-  , ["000019", "金角大王", "技术部"]
-  , ["000021", "行者孙", "技术部"]
-  , ["000004", "杨幂", "技术部"]
-  , ["000023", "金克丝", "技术部"]
-  , ["000017", "白骨精", "技术部"]
-  , ["000024", "蔚", "技术部"]
-  , ["000002", "柯镇恶", "技术部"]
-  , ["000008", "欧阳锋", "技术部"]
-  , ["000009", "周楠", "技术部"]
-  , ["000015", "卢本伟", "技术部"]
-  , ["000013", "鸣人", "技术部"]
-  , ["000003", "黄药师", "技术部"]
-  , ["000010", "艾薇儿", "技术部"]
-  , ["000011", "贾斯丁比伯", "技术部"]
-  , ["000020", "银角大王", "技术部"]
-  , ["000001", "周芷若", "技术部"]
-  , ["000005", "张无忌", "技术部"]
+  ["001", "陈雁", "允熙科技"]
+  , ["002", "黄纯熙", "允熙科技"]
+  , ["003", "易雨", "允熙科技"]
+  , ["004", "余杰", "允熙科技"]
+  , ["005", "蔡露遥", "允熙科技"]
+  , ["006", "余启焓", "允熙科技"]
+  , ["007", "唐伟", "允熙科技"]
+  , ["008", "符长鉴", "允熙科技"]
+  , ["009", "代方洁", "允熙科技"]
+  , ["010", "徐定桓", "允熙科技"]
+  , ["011", "张若飞", "允熙科技"]
+  , ["012", "李鹏旗", "允熙科技"]
+  , ["013", "唐艺芝", "允熙科技"]
+  , ["014", "罗雨璐", "允熙科技"]
+  , ["015", "陈龙", "允熙科技"]
+  , ["016", "王美华", "允熙科技"]
+  , ["017", "钟佩伶", "允熙科技"]
+  , ["018", "李继发", "允熙科技"]
+  , ["019", "石诚", "允熙科技"]
+  , ["020", "吕世雄", "允熙科技"]
 ]
 
 function randomsort(a, b) {
@@ -38,7 +39,7 @@ const user = test.sort(randomsort)
 /**
  * 卡片公司名称标识
  */
-const COMPANY = "Github";
+const COMPANY = "允熙科技";
 /**
  * 奖品设置
  * type: 唯一标识，0是默认特别奖的占位符，其它奖品不可使用
@@ -50,60 +51,126 @@ const COMPANY = "Github";
  * circle:旋转圈数最好8*x倍数
  * enter: //抽奖进行时音乐
  * awards: //颁奖音乐
+ * roundPrizes: 本轮的具体奖品列表
  */
+
+/**
+ * 每轮固定的奖品（按轮次分配）
+ */
+const roundPrizesConfig = {
+  1: [
+    "比乐蒂（Bialetti）摩卡壶咖",
+    "樱桃键盘MX2.0 Pro",
+    "星巴克大容量杯子（黑色）",
+    "小米登机箱（黑色）"
+  ],
+  2: [
+    "漫步者W820NB头戴式耳机",
+    "星巴克大容量杯子（粉色）",
+    "科颜氏高保湿面霜礼盒",
+    "飞科吹风机"
+  ],
+  3: [
+    "红包200",
+    "5L空气炸锅",
+    "小熊养生壶",
+    "usmile笑容加Y30S电动牙刷情侣款"
+  ],
+  4: [
+    "小熊养生壶",
+    "5L空气炸锅",
+    "BKT护腰垫",
+    "美的电烤箱"
+  ],
+  5: [
+    "小米登机箱（白色）",
+    "好利来200元卡券",
+    "山姆同款取暖炉",
+    "人体工学罗技Lift蓝牙垂直鼠标"
+  ]
+};
+
+// 获取当前轮次剩余的奖品
+function getLeftPrizesForRound(roundType) {
+  const key = `leftPrizes_round_${roundType}`;
+  const stored = localStorage.getItem(key);
+  if (stored) {
+    return JSON.parse(stored);
+  }
+  return roundPrizesConfig[roundType] ? [...roundPrizesConfig[roundType]] : [];
+}
+
+// 保存当前轮次剩余的奖品
+function saveLeftPrizesForRound(roundType, prizes) {
+  const key = `leftPrizes_round_${roundType}`;
+  localStorage.setItem(key, JSON.stringify(prizes));
+}
+
+// 已抽中的奖品记录 { 轮次: [{ user: 用户信息, prize: 奖品名称 }] }
+let wonPrizes = JSON.parse(localStorage.getItem("wonPrizes")) || {};
+
 const prizes = [
   {
     type: 0,
     count: 1000,
     title: "抽奖结束",
-    text: "需要重新抽奖请配置后重置"
+    text: "全部抽奖已完成"
   },
   {
     type: 1,
-    count: 1,
-    text: "一等奖 ",
-    title: "价值5999元",
+    count: 4,
+    text: "第一轮",
+    title: "摩卡壶/樱桃键盘/星巴克杯/小米登机箱",
     img: "./img/huawei.png",
-    enter: "1st-lottery",//抽奖进行时音乐
-    awards: "1st-BJ-BGM",//颁奖音乐
-    ROTATE_TIME: 20000,
-    circle: 8 * 6
-
+    enter: "1st-lottery",
+    awards: "1st-BJ-BGM",
+    ROTATE_TIME: 15000,
+    circle: 8 * 4
   },
   {
     type: 2,
-    count: 2,
-    text: "二等奖 ",
-    title: "价值3799元",
+    count: 4,
+    text: "第二轮",
+    title: "漫步者耳机/星巴克杯/科颜氏礼盒/飞科吹风机",
     img: "./img/mbp.jpg",
-    enter: "other-lottery",//抽奖进行时音乐
-    awards: "other-BJ-BGM",//颁奖音乐
-    ROTATE_TIME: 20000,
+    enter: "other-lottery",
+    awards: "other-BJ-BGM",
+    ROTATE_TIME: 12000,
     circle: 8 * 3
   },
   {
     type: 3,
-    count: 5,
-    text: "三等奖  ",
-    title: "价值1200元",
+    count: 4,
+    text: "第三轮",
+    title: "红包200/空气炸锅/养生壶/电动牙刷",
     img: "./img/ipad.jpg",
-    enter: "other-lottery",//抽奖进行时音乐
-    awards: "other-BJ-BGM",//颁奖音乐
+    enter: "other-lottery",
+    awards: "other-BJ-BGM",
     ROTATE_TIME: 10000,
     circle: 8 * 3
   },
   {
     type: 4,
-    count: 10,
-    text: "四等奖",
-    title: "价值300-600元不等",
+    count: 4,
+    text: "第四轮",
+    title: "养生壶/空气炸锅/护腰垫/电烤箱",
+    img: "./img/kindle.jpg",
+    enter: "other-lottery",
+    awards: "other-BJ-BGM",
+    ROTATE_TIME: 10000,
+    circle: 8 * 2
+  },
+  {
+    type: 5,
+    count: 4,
+    text: "第五轮",
+    title: "小米登机箱/好利来卡券/取暖炉/罗技鼠标",
     img: "./img/edifier.jpg",
-    enter: "other-lottery",//抽奖进行时音乐
-    awards: "other-BJ-BGM",//颁奖音乐
+    enter: "other-lottery",
+    awards: "other-BJ-BGM",
     ROTATE_TIME: 10000,
     circle: 8 * 1
   }
-
 ];
 let luckyData = JSON.parse(localStorage.getItem("luckyData")) || {};
 
@@ -113,7 +180,7 @@ let awardList = JSON.parse(localStorage.getItem("awardList")) || {}
 
 
 //不能说的秘密
-const excludeUser = [["000005", "张无忌", "技术部"]]
+const excludeUser = []
 /**
  * @description: 不能说的秘密
  * @param {*} nowItem 当前奖品
@@ -145,5 +212,5 @@ const height = window.innerWidth * .75 * .75
 /**
  * 一次抽取的奖品个数与prizes对应
  */
-const EACH_COUNT = [1, 1, 1, 5, 5];
-export default { EACH_COUNT, prizes, COMPANY, user, luckyData, leftUsers, awardList, excludeUser, atmosphereGroupCard, background, setSecret, width, height, bgVideo }
+const EACH_COUNT = [4, 4, 4, 4, 4];
+export default { EACH_COUNT, prizes, COMPANY, user, luckyData, leftUsers, awardList, excludeUser, atmosphereGroupCard, background, setSecret, width, height, bgVideo, roundPrizesConfig, getLeftPrizesForRound, saveLeftPrizesForRound, wonPrizes }
